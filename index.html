@@ -102,7 +102,7 @@
         <button onclick="searchMovies()">Tìm Kiếm</button>
     </div>
     <div class="list-container">
-        <select id="list-select">
+        <select id="list-select" onchange="resetPageAndLoadList()">
             <option value="">Chọn danh sách phim</option>
             <option value="phim-bo">Phim Bộ</option>
             <option value="phim-le">Phim Lẻ</option>
@@ -116,14 +116,12 @@
             <option value="phim-sap-chieu">Phim Sắp Chiếu</option>
             <option value="subteam">Subteam</option>
         </select>
-        <select id="genre-select">
+        <select id="genre-select" onchange="resetPageAndLoadList()">
             <option value="">Chọn thể loại</option>
         </select>
-        <select id="country-select">
+        <select id="country-select" onchange="resetPageAndLoadList()">
             <option value="">Chọn quốc gia</option>
         </select>
-        <button onclick="loadList()">Lọc</button>
-        <button class="random-button" onclick="viewRandomMovie()">Random film</button>
     </div>
     <div class="container" id="movie-container"></div>
     <div class="pagination">
@@ -134,31 +132,24 @@
 
     <script>
         let currentPage = 1;
+        let listType = '';
         let genreFilter = '';
         let countryFilter = '';
-        const totalMovies = []; // To store all fetched movies
+        let isLoading = false; // Flag to prevent multiple fetches
 
-        async function fetchMovies(page) {
+        async function fetchMovies(page, type, genre, country) {
             try {
-                const response = await fetch(`https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=${page}`);
+                let url = `https://ophim1.com/v1/api/danh-sach/${type}?page=${page}`;
+                if (genre) url += `&genre=${genre}`;
+                if (country) url += `&country=${country}`;
+                console.log('Fetching URL:', url); // Debugging line
+                const response = await fetch(url);
                 const data = await response.json();
-                return data.items || [];
+                return data.data.items || [];
             } catch (error) {
                 console.error('Error fetching movies:', error);
                 return [];
             }
-        }
-
-        async function fetchAllMovies() {
-            let page = 1;
-            let movies = [];
-            let fetchedMovies;
-            do {
-                fetchedMovies = await fetchMovies(page);
-                movies = movies.concat(fetchedMovies);
-                page++;
-            } while (fetchedMovies.length > 0);
-            return movies;
         }
 
         async function fetchGenres() {
@@ -230,32 +221,26 @@
         }
 
         async function loadMovies() {
-            const movies = await fetchMovies(currentPage);
+            if (isLoading) return; // Prevent multiple fetches
+            isLoading = true; // Set loading flag
+            const movies = await fetchMovies(currentPage, listType, genreFilter, countryFilter);
             renderMovies(movies);
             document.getElementById('page-number').textContent = currentPage;
+            window.scrollTo(0, 0); // Cuộn lên đầu trang
+            isLoading = false; // Reset loading flag
         }
 
         async function loadList() {
-            const listType = document.getElementById('list-select').value;
-            const genre = document.getElementById('genre-select').value;
-            const country = document.getElementById('country-select').value;
+            listType = document.getElementById('list-select').value;
+            genreFilter = document.getElementById('genre-select').value;
+            countryFilter = document.getElementById('country-select').value;
+            currentPage = 1; // Reset to the first page
+            await loadMovies();
+        }
 
-            let url = `https://ophim1.com/v1/api/danh-sach/${listType}`;
-            if (genre) {
-                url += `?genre=${genre}`;
-            }
-            if (country) {
-                url += (url.includes('?') ? '&' : '?') + `country=${country}`;
-            }
-
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                renderMovies(data.data.items || []);
-            } catch (error) {
-                console.error('Error fetching list:', error);
-                document.getElementById('movie-container').innerHTML = '<p>Đã xảy ra lỗi trong khi tải danh sách phim.</p>';
-            }
+        function resetPageAndLoadList() {
+            currentPage = 1; // Reset to the first page
+            loadList();
         }
 
         function prevPage() {
@@ -288,23 +273,10 @@
             }
         }
 
-        async function viewRandomMovie() {
-            if (totalMovies.length === 0) {
-                totalMovies.push(...await fetchAllMovies());
-            }
-            if (totalMovies.length > 0) {
-                const randomIndex = Math.floor(Math.random() * totalMovies.length);
-                const randomMovie = totalMovies[randomIndex];
-                window.location.href = `detail.html?slug=${randomMovie.slug}`;
-            } else {
-                alert('Không có phim để hiển thị.');
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadMovies();
             await loadGenres();
             await loadCountries();
+            await loadMovies();
         });
     </script>
 </body>
