@@ -136,6 +136,7 @@
         let currentPage = 1;
         let genreFilter = '';
         let countryFilter = '';
+        const totalMovies = []; // To store all fetched movies
 
         async function fetchMovies(page) {
             try {
@@ -146,6 +147,18 @@
                 console.error('Error fetching movies:', error);
                 return [];
             }
+        }
+
+        async function fetchAllMovies() {
+            let page = 1;
+            let movies = [];
+            let fetchedMovies;
+            do {
+                fetchedMovies = await fetchMovies(page);
+                movies = movies.concat(fetchedMovies);
+                page++;
+            } while (fetchedMovies.length > 0);
+            return movies;
         }
 
         async function fetchGenres() {
@@ -276,10 +289,12 @@
         }
 
         async function viewRandomMovie() {
-            const movies = await fetchMovies(currentPage);
-            if (movies.length > 0) {
-                const randomIndex = Math.floor(Math.random() * movies.length);
-                const randomMovie = movies[randomIndex];
+            if (totalMovies.length === 0) {
+                totalMovies.push(...await fetchAllMovies());
+            }
+            if (totalMovies.length > 0) {
+                const randomIndex = Math.floor(Math.random() * totalMovies.length);
+                const randomMovie = totalMovies[randomIndex];
                 window.location.href = `detail.html?slug=${randomMovie.slug}`;
             } else {
                 alert('Không có phim để hiển thị.');
