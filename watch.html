@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xem Phim</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            margin: 20px 0;
+        }
+        .player {
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+        .episodes {
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .episode-list {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            list-style: none;
+            padding: 0;
+            justify-content: center;
+        }
+        .episode-list li {
+            margin: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .episode-list li:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>Xem Phim</h1>
+    <div class="player">
+        <iframe id="video-player" width="100%" height="450px" src="" frameborder="0" allowfullscreen></iframe>
+    </div>
+    <div class="episodes" id="episodes">
+        <h2>Các tập phim</h2>
+        <ul class="episode-list" id="episode-list"></ul>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const slug = urlParams.get('slug');
+
+        async function fetchMovieDetails(slug) {
+            const response = await fetch(`https://ophim1.com/phim/${slug}`);
+            const data = await response.json();
+            return data;
+        }
+
+        function renderEpisodes(episodes) {
+            const episodeList = document.getElementById('episode-list');
+            episodeList.innerHTML = '';
+            episodes[0].server_data.forEach((episode, index) => {
+                const episodeItem = document.createElement('li');
+                episodeItem.textContent = `Tập ${episode.name}`;
+                episodeItem.onclick = () => {
+                    document.getElementById('video-player').src = episode.link_embed;
+                };
+                episodeList.appendChild(episodeItem);
+
+                // Tự động phát tập 1
+                if (index === 0) {
+                    document.getElementById('video-player').src = episode.link_embed;
+                }
+            });
+        }
+
+        async function loadMovieDetails() {
+            const data = await fetchMovieDetails(slug);
+            renderEpisodes(data.episodes);
+        }
+
+        loadMovieDetails();
+    </script>
+</body>
+</html>
