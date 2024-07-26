@@ -17,6 +17,9 @@
         h1 {
             margin: 20px 0;
         }
+        .search-container, .list-container {
+            margin: 20px;
+        }
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -69,10 +72,40 @@
             cursor: pointer;
             border-radius: 4px;
         }
+        .list-container select, .list-container button {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Phim Mới Cập Nhật</h1>
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Tìm kiếm phim..." onkeypress="handleKeyPress(event)">
+        <button onclick="searchMovies()">Tìm Kiếm</button>
+    </div>
+    <div class="list-container">
+        <select id="list-select">
+            <option value="">Chọn danh sách phim</option>
+            <option value="phim-bo">Phim Bộ</option>
+            <option value="phim-le">Phim Lẻ</option>
+            <option value="hoat-hinh">Hoạt Hình</option>
+            <option value="tv-shows">TV Shows</option>
+            <option value="phim-vietsub">Phim Vietsub</option>
+            <option value="phim-thuyet-minh">Phim Thuyết Minh</option>
+            <option value="phim-long-tieng">Phim Lồng Ghép</option>
+            <option value="phim-bo-dang-chieu">Phim Bộ Đang Chiếu</option>
+            <option value="phim-bo-hoan-thanh">Phim Bộ Hoàn Thành</option>
+            <option value="phim-sap-chieu">Phim Sắp Chiếu</option>
+            <option value="subteam">Subteam</option>
+        </select>
+        <select id="genre-select">
+            <option value="">Chọn thể loại</option>
+        </select>
+        <select id="country-select">
+            <option value="">Chọn quốc gia</option>
+        </select>
+        <button onclick="loadList()">Lọc</button>
+    </div>
     <div class="container" id="movie-container"></div>
     <div class="pagination">
         <button onclick="prevPage()">Trang Trước</button>
@@ -82,29 +115,88 @@
 
     <script>
         let currentPage = 1;
+        let genreFilter = '';
+        let countryFilter = '';
 
         async function fetchMovies(page) {
-            const response = await fetch(`https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=${page}`);
-            const data = await response.json();
-            return data.items;
+            try {
+                const response = await fetch(`https://ophim1.com/danh-sach/phim-moi-cap-nhat?page=${page}`);
+                const data = await response.json();
+                return data.items || [];
+            } catch (error) {
+                console.error('Error fetching movies:', error);
+                return [];
+            }
+        }
+
+        async function fetchGenres() {
+            try {
+                const response = await fetch('https://ophim1.com/v1/api/the-loai');
+                const data = await response.json();
+                console.log('Genres data:', data); // Thêm dòng này để kiểm tra dữ liệu
+                return Array.isArray(data.data.items) ? data.data.items : [];
+            } catch (error) {
+                console.error('Error fetching genres:', error);
+                return [];
+            }
+        }
+
+        async function fetchCountries() {
+            try {
+                const response = await fetch('https://ophim1.com/v1/api/quoc-gia');
+                const data = await response.json();
+                console.log('Countries data:', data); // Thêm dòng này để kiểm tra dữ liệu
+                return Array.isArray(data.data.items) ? data.data.items : [];
+            } catch (error) {
+                console.error('Error fetching countries:', error);
+                return [];
+            }
+        }
+
+        async function loadGenres() {
+            const genres = await fetchGenres();
+            const genreSelect = document.getElementById('genre-select');
+            genreSelect.innerHTML = '<option value="">Chọn thể loại</option>'; // Reset options
+            genres.forEach(genre => {
+                const option = document.createElement('option');
+                option.value = genre.slug;
+                option.textContent = genre.name;
+                genreSelect.appendChild(option);
+            });
+        }
+
+        async function loadCountries() {
+            const countries = await fetchCountries();
+            const countrySelect = document.getElementById('country-select');
+            countrySelect.innerHTML = '<option value="">Chọn quốc gia</option>'; // Reset options
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country.slug;
+                option.textContent = country.name;
+                countrySelect.appendChild(option);
+            });
         }
 
         function renderMovies(movies) {
             const container = document.getElementById('movie-container');
             container.innerHTML = '';
-            movies.forEach(movie => {
-                const movieElement = document.createElement('div');
-                movieElement.classList.add('movie');
-                movieElement.onclick = () => {
-                    window.location.href = `detail.html?slug=${movie.slug}`;
-                };
-                movieElement.innerHTML = `
-                    <img src="https://img.ophim.live/uploads/movies/${movie.thumb_url}" alt="${movie.name}">
-                    <h2>${movie.name}</h2>
-                    <p>Năm: ${movie.year}</p>
-                `;
-                container.appendChild(movieElement);
-            });
+            if (movies.length > 0) {
+                movies.forEach(movie => {
+                    const movieElement = document.createElement('div');
+                    movieElement.classList.add('movie');
+                    movieElement.onclick = () => {
+                        window.location.href = `detail.html?slug=${movie.slug}`;
+                    };
+                    movieElement.innerHTML = `
+                        <img src="https://img.ophim.live/uploads/movies/${movie.thumb_url}" alt="${movie.name}">
+                        <h2>${movie.name}</h2>
+                        <p>Năm: ${movie.year}</p>
+                    `;
+                    container.appendChild(movieElement);
+                });
+            } else {
+                container.innerHTML = '<p>Không tìm thấy phim.</p>';
+            }
         }
 
         async function loadMovies() {
@@ -113,9 +205,27 @@
             document.getElementById('page-number').textContent = currentPage;
         }
 
-        function nextPage() {
-            currentPage++;
-            loadMovies();
+        async function loadList() {
+            const listType = document.getElementById('list-select').value;
+            const genre = document.getElementById('genre-select').value;
+            const country = document.getElementById('country-select').value;
+
+            let url = `https://ophim1.com/v1/api/danh-sach/${listType}`;
+            if (genre) {
+                url += `?genre=${genre}`;
+            }
+            if (country) {
+                url += (url.includes('?') ? '&' : '?') + `country=${country}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderMovies(data.data.items || []);
+            } catch (error) {
+                console.error('Error fetching list:', error);
+                document.getElementById('movie-container').innerHTML = '<p>Đã xảy ra lỗi trong khi tải danh sách phim.</p>';
+            }
         }
 
         function prevPage() {
@@ -125,7 +235,34 @@
             }
         }
 
-        loadMovies();
+        function nextPage() {
+            currentPage++;
+            loadMovies();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                searchMovies();
+            }
+        }
+
+        async function searchMovies() {
+            const keyword = document.getElementById('search-input').value;
+            try {
+                const response = await fetch(`https://ophim1.com/v1/api/tim-kiem?keyword=${keyword}`);
+                const data = await response.json();
+                renderMovies(data.data.items || []);
+            } catch (error) {
+                console.error('Error searching movies:', error);
+                document.getElementById('movie-container').innerHTML = '<p>Đã xảy ra lỗi trong khi tìm kiếm phim.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadMovies();
+            await loadGenres();
+            await loadCountries();
+        });
     </script>
 </body>
 </html>
